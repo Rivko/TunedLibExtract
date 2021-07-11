@@ -1,5 +1,6 @@
 import binascii
 import mmap
+import os
 import struct
 import sys
 
@@ -172,12 +173,12 @@ if __name__ == "__main__":
     ]
     print("\nOrder in libs:")
     for id, pair in enumerate(awb_order):
-        print(f"{pair}: {awb[id]}")
+        print(f"{pair:30}: {awb[id]}")
 
     gcam_order = [2, 1, 7, 6, 4, 8, 3, 5]
     print("\nOrder for gcam:")
     for pair in gcam_order:
-        print(f"{awb_order[pair]}: {awb[pair]}")
+        print(f"{awb_order[pair]:30}: {awb[pair]}")
 
     cct = []
     cct13 = libextract.DecodeCct(hexcc13)
@@ -201,3 +202,4 @@ if __name__ == "__main__":
         f.write("\nCCT:\n")
         for matrix in cct:
             f.write(str(matrix) + "\n")
+    os.system("pause")
