@@ -190,3 +190,14 @@ if __name__ == "__main__":
     print("\nCCT:")
     for matrix in cct:
         print(matrix)
+
+    with open(libextract.TunedName + ".txt", "w", encoding="utf-8") as f:
+        f.write("Order in libs:\n")
+        for id, pair in enumerate(awb_order):
+            f.write(f"{pair:30}: {awb[id]}\n")
+        f.write("\nOrder for gcam:\n")
+        for pair in gcam_order:
+            f.write(f"{awb_order[pair]:30}: {awb[pair]}\n")
+        f.write("\nCCT:\n")
+        for matrix in cct:
+            f.write(str(matrix) + "\n")
