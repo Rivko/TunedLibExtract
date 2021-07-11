@@ -19,6 +19,7 @@ class TunedLibExtract:
         if "tuned" not in name:
             print("Expected com.qti.tuned*.bin")
             os.system("pause")
+            exit()
         self.TunedName = name
         try:
             with open(self.TunedName, "rb") as f:
