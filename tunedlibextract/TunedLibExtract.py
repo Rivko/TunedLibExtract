@@ -17,7 +17,8 @@ class TunedLibExtract:
 
     def OpenTunedLib(self, name):
         if "tuned" not in name:
-            raise NameError("Expected com.qti.tuned*.bin")
+            print("Expected com.qti.tuned*.bin")
+            os.system("pause")
         self.TunedName = name
         try:
             with open(self.TunedName, "rb") as f:
@@ -26,7 +27,7 @@ class TunedLibExtract:
                 )
                 # на старых 1.1.х версиях выравнивание было по 4 байта
                 index = self.TunedLib.find("1.1.".encode(), 0)
-                # ???????????????????????? неведомая ебанина от 378
+                # ???????????????????????? неведомая ебанина от имх345
                 index2 = self.TunedLib.find(
                     "ParameterFileConverter V.7.0.4.39070".encode(), 0
                 )
@@ -45,7 +46,7 @@ class TunedLibExtract:
                     )
         except Exception as e:
             print(e)
-            exit()
+            os.system("pause")
 
     def GetOffsetsAndLengthsByName(self, name):
         offsets = []
@@ -171,12 +172,12 @@ if __name__ == "__main__":
         "StatsIlluminantHorizon",
         "StatsIlluminantLow",
     ]
-    print("\nOrder in libs:")
+    print("\nOrder in libs:                      RG            BG")
     for id, pair in enumerate(awb_order):
         print(f"{pair:30}: {awb[id]}")
 
     gcam_order = [2, 1, 7, 6, 4, 8, 3, 5]
-    print("\nOrder for gcam:")
+    print("\nOrder for gcam:                     RG            BG")
     for pair in gcam_order:
         print(f"{awb_order[pair]:30}: {awb[pair]}")
 
@@ -193,10 +194,10 @@ if __name__ == "__main__":
         print(matrix)
 
     with open(libextract.TunedName + ".txt", "w", encoding="utf-8") as f:
-        f.write("Order in libs:\n")
+        f.write("Order in libs:                      RG            BG\n")
         for id, pair in enumerate(awb_order):
             f.write(f"{pair:30}: {awb[id]}\n")
-        f.write("\nOrder for gcam:\n")
+        f.write("\nOrder for gcam:                     RG            BG\n")
         for pair in gcam_order:
             f.write(f"{awb_order[pair]:30}: {awb[pair]}\n")
         f.write("\nCCT:\n")

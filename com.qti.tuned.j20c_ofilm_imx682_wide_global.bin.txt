@@ -1,4 +1,4 @@
-Order in libs:
+Order in libs:                      RG            BG
 StatsIlluminantHigh           : ('0.204188', '0.958359')
 StatsIlluminantD75            : ('0.388798', '0.707706')
 StatsIlluminantD65            : ('0.424344', '0.662256')
@@ -10,7 +10,7 @@ StatsIlluminantIncandescent   : ('0.774410', '0.378921')
 StatsIlluminantHorizon        : ('0.965611', '0.318111')
 StatsIlluminantLow            : ('1.200323', '0.227066')
 
-Order for gcam:
+Order for gcam:                     RG            BG
 StatsIlluminantD65            : ('0.424344', '0.662256')
 StatsIlluminantD75            : ('0.388798', '0.707706')
 StatsIlluminantIncandescent   : ('0.774410', '0.378921')
