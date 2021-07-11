@@ -150,7 +150,6 @@ if __name__ == "__main__":
 
     libextract = TunedLibExtract()
     libextract.OpenTunedLib(tuned_name)
-    print(f"{libextract.DataOffset!a}")
 
     cc13_offsets = libextract.GetOffsetsAndLengthsByName("mod_cc13_cct_data")
     cc12_offsets = libextract.GetOffsetsAndLengthsByName("mod_cc12_cct_data")
@@ -159,15 +158,35 @@ if __name__ == "__main__":
     hexcc12 = libextract.ExtractDataByOffsets(cc12_offsets)
     hexawb = libextract.ExtractDataByOffsets(refptv1_offset)
     awb = libextract.DecodeAwb(hexawb)
-    print(refptv1_offset[0][0])
-    print(hexawb)
-    print(awb)
+    awb_order = [
+        "StatsIlluminantHigh",
+        "StatsIlluminantD75",
+        "StatsIlluminantD65",
+        "StatsIlluminantD50",
+        "StatsIlluminantCW",
+        "StatsIlluminantFluorescent",
+        "StatsIlluminantTL84",
+        "StatsIlluminantIncandescent",
+        "StatsIlluminantHorizon",
+        "StatsIlluminantLow",
+    ]
+    print("\nOrder in libs:")
+    for id, pair in enumerate(awb_order):
+        print(f"{pair}: {awb[id]}")
+
+    gcam_order = [2, 1, 7, 6, 4, 8, 3, 5]
+    print("\nOrder for gcam:")
+    for pair in gcam_order:
+        print(f"{awb_order[pair]}: {awb[pair]}")
 
     cct = []
     cct13 = libextract.DecodeCct(hexcc13)
     cct12 = libextract.DecodeCct(hexcc12)
+    # ебаные пустые авб от сяомы
     cct = cct + cct13 if cct13 is not None else cct
     cct = cct + cct12 if cct12 is not None else cct
-    cct = list(dict.fromkeys(cct))  # убирает дубликаты
+    # убирает дубликаты
+    cct = list(dict.fromkeys(cct))
+    print("\nCCT:")
     for matrix in cct:
         print(matrix)
