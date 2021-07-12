@@ -15,6 +15,12 @@ class TunedLibExtract:
     def FloatToHex(self, f):
         return hex(struct.unpack("<I", struct.pack("<f", f))[0])
 
+    def MatrixToHex(self, matrix):
+        converted = []
+        for value in list(matrix):
+            converted.append(self.FloatToHex(float(value)))
+        return converted
+
     def OpenTunedLib(self, name):
         if "tuned" not in name:
             print("Expected com.qti.tuned*.bin")
@@ -182,6 +188,14 @@ if __name__ == "__main__":
     for pair in gcam_order:
         print(f"{awb_order[pair]:30}: {awb[pair]}")
 
+    print("\nAWB in HEX:\nRG")
+    for pair in gcam_order:
+        print(str(libextract.FloatToHex(float(awb[pair][0]))))
+
+    print("\nBG")
+    for pair in gcam_order:
+        print(str(libextract.FloatToHex(float(awb[pair][1]))))
+
     cct = []
     cct13 = libextract.DecodeCct(hexcc13)
     cct12 = libextract.DecodeCct(hexcc12)
@@ -193,6 +207,10 @@ if __name__ == "__main__":
     print("\nCCT:")
     for matrix in cct:
         print(matrix)
+        matrix_in_hex = libextract.MatrixToHex(matrix)
+        print("In HEX:")
+        for hex_value in matrix_in_hex:
+            print(hex_value)
 
     with open(libextract.TunedName + ".txt", "w", encoding="utf-8") as f:
         f.write("Order in libs:                      RG            BG\n")
@@ -201,7 +219,18 @@ if __name__ == "__main__":
         f.write("\nOrder for gcam:                     RG            BG\n")
         for pair in gcam_order:
             f.write(f"{awb_order[pair]:30}: {awb[pair]}\n")
+        f.write("\nAWB in HEX:\nRG\n")
+        for pair in gcam_order:
+            f.write(str(libextract.FloatToHex(float(awb[pair][0]))) + "\n")
+        f.write("\nBG\n")
+        for pair in gcam_order:
+            f.write(str(libextract.FloatToHex(float(awb[pair][1]))) + "\n")
         f.write("\nCCT:\n")
         for matrix in cct:
             f.write(str(matrix) + "\n")
+            matrix_in_hex = libextract.MatrixToHex(matrix)
+            f.write("In HEX:\n")
+            for hex_value in matrix_in_hex:
+                f.write(hex_value + "\n")
+
     os.system("pause")
