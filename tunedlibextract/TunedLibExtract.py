@@ -211,6 +211,7 @@ if __name__ == "__main__":
         print("In HEX:")
         for hex_value in matrix_in_hex:
             print(hex_value)
+        print("\n")
 
     with open(libextract.TunedName + ".txt", "w", encoding="utf-8") as f:
         f.write("Order in libs:                      RG            BG\n")
@@ -232,5 +233,6 @@ if __name__ == "__main__":
             f.write("In HEX:\n")
             for hex_value in matrix_in_hex:
                 f.write(hex_value + "\n")
+            f.write("\n")
 
     os.system("pause")
