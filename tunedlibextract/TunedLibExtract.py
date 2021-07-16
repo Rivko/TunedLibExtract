@@ -21,6 +21,11 @@ class TunedLibExtract:
             converted.append(self.FloatToHex(float(value)))
         return converted
 
+    def CheckIfInRange(self, value):
+        if 0.0 <= value <= 20000.0 and round(value, 2) == value:
+            return True
+        return False
+
     def OpenTunedLib(self, name):
         if "tuned" not in name:
             print("Expected com.qti.tuned*.bin")
@@ -110,7 +115,7 @@ class TunedLibExtract:
         return awb_float
 
     def DecodeCct(self, hexdata):
-        cct_float = []
+        cct_matrix = []
         if hexdata == []:
             return
         n = 8  # 8 символов = 4 байта
@@ -129,25 +134,45 @@ class TunedLibExtract:
                 for value in cct_hex
             ]
             cct_hex = ["%.5f" % elem for elem in cct_hex]
-            cct_start = cct_hex[
-                0::11
-            ]  # короче в строке нулевое значение и каждое одиннадцатое это начало ренжа температуры
-            cct_end = cct_hex[
-                1::11
-            ]  # точно так же первое значение и через каждые 11 значений это конец ренжа температуры
-            cct_values = [x for x in cct_hex if x not in cct_start]
-            cct_values = [
-                x for x in cct_values if x not in cct_end
-            ]  # убираю ренж температур потому что не нужны
+            # cct_start = cct_hex[
+            #     0::11
+            # ]  # короче в строке нулевое значение и каждое одиннадцатое это начало ренжа температуры
+            # cct_end = cct_hex[
+            #     1::11
+            # ]  # точно так же первое значение и через каждые 11 значений это конец ренжа температуры
+            # cct_values = [x for x in cct_hex if x not in cct_start]
+            # cct_values = [
+            #     x for x in cct_values if x not in cct_end
+            # ]  # убираю ренж температур потому что не нужны
+            cct_values = cct_hex
             cct_values = list(filter(None, cct_values))  # пустые значения
             cct_values = [x for x in cct_values if x]  # пустые значения
             if (
-                len(cct_values) % 9 == 0 and cct_values != []
+                len(cct_values) % 11 == 0 and cct_values != []
             ):  # еще раз пустые значения потому что пиздец
-                cct_float += zip(
-                    *[iter(cct_values)] * 9
+                cct_matrix += zip(
+                    *[iter(cct_values)] * 11
                 )  # каждые 9 значений это одна матрица
-        return cct_float
+        return cct_matrix
+
+    def DecodeAec(self, hexdata):
+        n = 8  # данные об одном ренже люксов занимают примерно 30 (48)
+        for aec_hex in hexdata:
+            aec_hex = [
+                aec_hex[i : i + n] for i in range(0, len(aec_hex), n)
+            ]  # деление всей строки на список значений
+            filter_hex = ["01000000", "02000000", "00000000"]  # фильтр мусора
+            aec_hex = [
+                i
+                for i in aec_hex
+                if not any([e for e in filter_hex if e in i])
+            ]
+            aec_hex = [
+                struct.unpack("<f", binascii.unhexlify(value))
+                for value in aec_hex
+            ]
+            aec_hex = [i[0] for i in aec_hex if self.CheckIfInRange(i[0])]
+            # print(aec_hex)
 
 
 if __name__ == "__main__":
@@ -161,11 +186,24 @@ if __name__ == "__main__":
     libextract.OpenTunedLib(tuned_name)
 
     cc13_offsets = libextract.GetOffsetsAndLengthsByName("mod_cc13_cct_data")
+    cc13_aec = libextract.GetOffsetsAndLengthsByName("mod_cc13_aec_data")
+    aec13_cc = [int(aec[0]) + int(aec[1]) for aec in cc13_aec]
+    # cc13_offsets = [offset for offset in cc13_offsets if offset[0] in aec13_cc]
+
     cc12_offsets = libextract.GetOffsetsAndLengthsByName("mod_cc12_cct_data")
+    cc12_aec = libextract.GetOffsetsAndLengthsByName("mod_cc12_aec_data")
+    aec12_cc = [int(aec[0]) + int(aec[1]) for aec in cc12_aec]
+    # cc12_offsets = [offset for offset in cc12_offsets if offset[0] in aec12_cc]
     refptv1_offset = libextract.GetOffsetsAndLengthsByName("refPtV1")
+
     hexcc13 = libextract.ExtractDataByOffsets(cc13_offsets)
     hexcc12 = libextract.ExtractDataByOffsets(cc12_offsets)
+    hexcc12aec = libextract.ExtractDataByOffsets(cc12_aec)
+    hexcc13aec = libextract.ExtractDataByOffsets(cc13_aec)
     hexawb = libextract.ExtractDataByOffsets(refptv1_offset)
+
+    cc13aec = libextract.DecodeAec(hexcc13aec)
+    cc12aec = libextract.DecodeAec(hexcc12aec)
     awb = libextract.DecodeAwb(hexawb)
     awb_order = [
         "StatsIlluminantHigh",
@@ -206,6 +244,10 @@ if __name__ == "__main__":
     cct = list(dict.fromkeys(cct))
     print("\nCCT:")
     for matrix in cct:
+        print(
+            f"Temperature trigger: {int(float(matrix[0]))} - {int(float(matrix[1]))}"
+        )  # это просто пиздец прости меня господи
+        matrix = matrix[2:]
         print(matrix)
         matrix_in_hex = libextract.MatrixToHex(matrix)
         print("In HEX:")
@@ -228,6 +270,10 @@ if __name__ == "__main__":
             f.write(str(libextract.FloatToHex(float(awb[pair][1]))) + "\n")
         f.write("\nCCT:\n")
         for matrix in cct:
+            f.write(
+                f"Temperature trigger: {int(float(matrix[0]))} - {int(float(matrix[1]))}\n"
+            )
+            matrix = matrix[2:]
             f.write(str(matrix) + "\n")
             matrix_in_hex = libextract.MatrixToHex(matrix)
             f.write("In HEX:\n")
