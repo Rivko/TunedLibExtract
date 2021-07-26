@@ -7,7 +7,9 @@ import sys
 
 class TunedLibExtract:
     def __init__(self):
-        self.IsSnap845Family = False
+        self.offsetToData = 0
+        self.offsetToOffset = 0
+        self.offsetToLength = 0
         self.TunedName = ""
         self.TunedLib = ""
         self.DataOffset = 0
@@ -30,32 +32,43 @@ class TunedLibExtract:
         if "tuned" not in name:
             print("Expected com.qti.tuned*.bin")
             os.system("pause")
-            exit()
+            sys.exit()
         self.TunedName = name
         try:
             with open(self.TunedName, "rb") as f:
                 self.TunedLib = mmap.mmap(
                     f.fileno(), 0, access=mmap.ACCESS_READ
                 )
-                # на старых 1.1.х версиях выравнивание было по 4 байта
-                index = self.TunedLib.find("1.1.".encode(), 0)
-                # ???????????????????????? неведомая ебанина от имх345
-                index2 = self.TunedLib.find(
-                    "ParameterFileConverter V.7.0.4.39070".encode(), 0
+                snap845 = [
+                    "ParameterParser V1.1.".encode(),
+                    "ParameterFileConverter V.7.0.4.39070".encode(),
+                ]
+                # на снапе845 на старых 1.1.х версиях выравнивание было по 4 байта
+                snap888 = [
+                    "Parameter Parser V3.0.".encode()
+                ]  # снап888 от ванплас9про
+                self.offsetToData = (
+                    192  # на остальных должен лежать через C0 (192)
                 )
-                if index != -1 or index2 != -1:
-                    self.IsSnap845Family = True
-                    # на 845 оффсет даты лежит через B0 (176) от начала файла
-                    self.TunedLib.seek(176, 0)
-                    self.DataOffset = int.from_bytes(
-                        self.TunedLib.read(4), "little"
-                    )
-                else:
-                    # на нормальных снапах оффсет даты всегда будет через C0 (192) от начала файла
-                    self.TunedLib.seek(192, 0)
-                    self.DataOffset = int.from_bytes(
-                        self.TunedLib.read(4), "little"
-                    )
+                self.offsetToOffset = (
+                    48  # длина от названия параметра до его оффсета
+                )
+                self.offsetToLength = 8  # длина от оффсета до его размера
+                for i in range(0, len(snap845)):
+                    if self.TunedLib.find(snap845[i]) != -1:
+                        self.offsetToData = 176  # на 845 оффсет даты лежит через B0 (176) от начала файла
+                        self.offsetToOffset = 52
+                        self.offsetToLength = 4
+                for i in range(0, len(snap888)):
+                    if self.TunedLib.find(snap888[i], 0) != -1:
+                        self.offsetToData = 184  # на 888 оффсет даты лежит через B8 (184) от начала файла
+                        self.offsetToOffset = 44
+                        self.offsetToLength = 4
+
+                self.TunedLib.seek(self.offsetToData, 0)
+                self.DataOffset = int.from_bytes(
+                    self.TunedLib.read(4), "little"
+                )
         except Exception as e:
             print(e)
             os.system("pause")
@@ -66,14 +79,14 @@ class TunedLibExtract:
         index = self.TunedLib.find(name.encode(), 0)
         while index >= 0:
             index = (
-                index + 48 if not self.IsSnap845Family else index + 52
+                index + self.offsetToOffset
             )  # оффсет будет через 30 (48) после названия для нормальных либ или через 34 (52) для хуйни типа 845
             self.TunedLib.seek(index, 0)
             offsets.append(
                 int.from_bytes(self.TunedLib.read(4), "little")
             )  # перевод 4 байтов длины в инт
             index = (
-                index + 8 if not self.IsSnap845Family else index + 4
+                index + self.offsetToLength
             )  # длина будет через 4 байта после оффсета для нормальных либ или сразу за оффсетом для 845
             self.TunedLib.seek(index, 0)
             length = self.TunedLib.read(2).hex()  # длина всего 2 байта
@@ -152,7 +165,7 @@ class TunedLibExtract:
             ):  # еще раз пустые значения потому что пиздец
                 cct_matrix += zip(
                     *[iter(cct_values)] * 11
-                )  # каждые 9 значений это одна матрица
+                )  # каждые 11 значений это одна матрица
         return cct_matrix
 
     def DecodeAec(self, hexdata):
