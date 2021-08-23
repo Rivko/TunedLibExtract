@@ -5,7 +5,7 @@ import struct
 import sys
 import urllib.request
 
-from __init__ import __version__
+__version__ = "0.5.0"
 
 
 class TunedLibExtract:
@@ -248,10 +248,10 @@ if __name__ == "__main__":
 
     print("\nAWB in Java:")
     print(
-        f"WB_BG = new float[]{{{awb[2][1]}, {awb[1][1]}, {awb[7][1]}, {awb[6][1]}, {awb[4][1]}, {awb[8][1]}, {awb[3][1]}, {awb[5][1]}}};"
+        f"WB_BG = new float[]{{{awb[2][1]}f, {awb[1][1]}f, {awb[7][1]}f, {awb[6][1]}f, {awb[4][1]}f, {awb[8][1]}f, {awb[3][1]}f, {awb[5][1]}f}};"
     )
     print(
-        f"WB_RG = new float[]{{{awb[2][0]}, {awb[1][0]}, {awb[7][0]}, {awb[6][0]}, {awb[4][0]}, {awb[8][0]}, {awb[3][0]}, {awb[5][0]}}};"
+        f"WB_RG = new float[]{{{awb[2][0]}f, {awb[1][0]}f, {awb[7][0]}f, {awb[6][0]}f, {awb[4][0]}f, {awb[8][0]}f, {awb[3][0]}f, {awb[5][0]}f}};"
     )
 
     print("\nAWB in HEX:\nRG")
@@ -296,6 +296,14 @@ if __name__ == "__main__":
         f.write("\nBG\n")
         for pair in gcam_order:
             f.write(str(libextract.float_to_hex(float(awb[pair][1]))) + "\n")
+        f.write("\nAWB in Java:\n")
+        f.write(
+            f"WB_BG = new float[]{{{awb[2][1]}f, {awb[1][1]}f, {awb[7][1]}f, {awb[6][1]}f, {awb[4][1]}f, {awb[8][1]}f, {awb[3][1]}f, {awb[5][1]}f}};\n"
+        )
+        f.write(
+            f"WB_RG = new float[]{{{awb[2][0]}f, {awb[1][0]}f, {awb[7][0]}f, {awb[6][0]}f, {awb[4][0]}f, {awb[8][0]}f, {awb[3][0]}f, {awb[5][0]}f}};\n"
+        )
+
         f.write("\nCCT:\n")
         for matrix in cct:
             f.write(
