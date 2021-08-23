@@ -3,40 +3,43 @@ import mmap
 import os
 import struct
 import sys
+import urllib.request
+
+from __init__ import __version__
 
 
 class TunedLibExtract:
     def __init__(self):
-        self.offsetToData = 0
-        self.offsetToOffset = 0
-        self.offsetToLength = 0
-        self.TunedName = ""
-        self.TunedLib = ""
-        self.DataOffset = 0
+        self.offset_to_data = 0
+        self.offset_to_offset = 0
+        self.offset_to_length = 0
+        self.tuned_name = ""
+        self.tuned_lib = ""
+        self.data_offset = 0
 
-    def FloatToHex(self, f):
+    def float_to_hex(self, f):
         return hex(struct.unpack("<I", struct.pack("<f", f))[0])
 
-    def MatrixToHex(self, matrix):
+    def matrix_to_hex(self, matrix):
         converted = []
         for value in list(matrix):
-            converted.append(self.FloatToHex(float(value)))
+            converted.append(self.float_to_hex(float(value)))
         return converted
 
-    def CheckIfInRange(self, value):
+    def check_if_in_range(self, value):
         if 0.0 <= value <= 20000.0 and round(value, 2) == value:
             return True
         return False
 
-    def OpenTunedLib(self, name):
+    def open_tuned_lib(self, name):
         if "tuned" not in name:
             print("Expected com.qti.tuned*.bin")
             os.system("pause")
             sys.exit()
-        self.TunedName = name
+        self.tuned_name = name
         try:
-            with open(self.TunedName, "rb") as f:
-                self.TunedLib = mmap.mmap(
+            with open(self.tuned_name, "rb") as f:
+                self.tuned_lib = mmap.mmap(
                     f.fileno(), 0, access=mmap.ACCESS_READ
                 )
                 snap845 = [
@@ -47,69 +50,69 @@ class TunedLibExtract:
                 snap888 = [
                     "Parameter Parser V3.0.".encode()
                 ]  # снап888 от ванплас9про
-                self.offsetToData = (
+                self.offset_to_data = (
                     192  # на остальных должен лежать через C0 (192)
                 )
-                self.offsetToOffset = (
+                self.offset_to_offset = (
                     48  # длина от названия параметра до его оффсета
                 )
-                self.offsetToLength = 8  # длина от оффсета до его размера
+                self.offset_to_length = 8  # длина от оффсета до его размера
                 for i in range(0, len(snap845)):
-                    if self.TunedLib.find(snap845[i]) != -1:
-                        self.offsetToData = 176  # на 845 оффсет даты лежит через B0 (176) от начала файла
-                        self.offsetToOffset = 52
-                        self.offsetToLength = 4
+                    if self.tuned_lib.find(snap845[i]) != -1:
+                        self.offset_to_data = 176  # на 845 оффсет даты лежит через B0 (176) от начала файла
+                        self.offset_to_offset = 52
+                        self.offset_to_length = 4
                 for i in range(0, len(snap888)):
-                    if self.TunedLib.find(snap888[i], 0) != -1:
-                        self.offsetToData = 184  # на 888 оффсет даты лежит через B8 (184) от начала файла
-                        self.offsetToOffset = 44
-                        self.offsetToLength = 4
+                    if self.tuned_lib.find(snap888[i], 0) != -1:
+                        self.offset_to_data = 184  # на 888 оффсет даты лежит через B8 (184) от начала файла
+                        self.offset_to_offset = 44
+                        self.offset_to_length = 4
 
-                self.TunedLib.seek(self.offsetToData, 0)
-                self.DataOffset = int.from_bytes(
-                    self.TunedLib.read(4), "little"
+                self.tuned_lib.seek(self.offset_to_data, 0)
+                self.data_offset = int.from_bytes(
+                    self.tuned_lib.read(4), "little"
                 )
         except Exception as e:
             print(e)
             os.system("pause")
 
-    def GetOffsetsAndLengthsByName(self, name):
+    def get_offsets_and_lengths_by_name(self, name):
         offsets = []
         lengths = []
-        index = self.TunedLib.find(name.encode(), 0)
+        index = self.tuned_lib.find(name.encode(), 0)
         while index >= 0:
             index = (
-                index + self.offsetToOffset
+                index + self.offset_to_offset
             )  # оффсет будет через 30 (48) после названия для нормальных либ или через 34 (52) для хуйни типа 845
-            self.TunedLib.seek(index, 0)
+            self.tuned_lib.seek(index, 0)
             offsets.append(
-                int.from_bytes(self.TunedLib.read(4), "little")
+                int.from_bytes(self.tuned_lib.read(4), "little")
             )  # перевод 4 байтов длины в инт
             index = (
-                index + self.offsetToLength
+                index + self.offset_to_length
             )  # длина будет через 4 байта после оффсета для нормальных либ или сразу за оффсетом для 845
-            self.TunedLib.seek(index, 0)
-            length = self.TunedLib.read(2).hex()  # длина всего 2 байта
+            self.tuned_lib.seek(index, 0)
+            length = self.tuned_lib.read(2).hex()  # длина всего 2 байта
             length = (
                 length[2:4] + length[0:2]
             )  # переворот длины в хексе с предподвыподвертом
             lengths.append(int(length, 16))  # перевод в инт из хекса
-            index = self.TunedLib.find(
+            index = self.tuned_lib.find(
                 name.encode(), index
             )  # дальше пусть ищет по циклу
         return list(zip(offsets, lengths))
 
-    def ExtractDataByOffsets(self, offsets):
+    def extract_data_by_offsets(self, offsets):
         hexdata = []
         for offset in offsets:
-            self.TunedLib.seek(
-                self.DataOffset, 0
+            self.tuned_lib.seek(
+                self.data_offset, 0
             )  # перехожу на начало блока дата
-            self.TunedLib.seek(offset[0], 1)
-            hexdata.append(self.TunedLib.read(offset[1]).hex())
+            self.tuned_lib.seek(offset[0], 1)
+            hexdata.append(self.tuned_lib.read(offset[1]).hex())
         return hexdata
 
-    def DecodeAwb(self, hexdata):
+    def decode_awb(self, hexdata):
         n = 8  # 8 символов = 4 байта
         hexdata = [
             hexdata[0][i : i + n] for i in range(0, len(hexdata[0]), n)
@@ -127,7 +130,7 @@ class TunedLibExtract:
         awb_float = list(zip(awb_float[0::2], awb_float[1::2]))  # хз надо ли
         return awb_float
 
-    def DecodeCct(self, hexdata):
+    def decode_cct(self, hexdata):
         cct_matrix = []
         if hexdata == []:
             return
@@ -168,7 +171,7 @@ class TunedLibExtract:
                 )  # каждые 11 значений это одна матрица
         return cct_matrix
 
-    def DecodeAec(self, hexdata):
+    def decode_aec(self, hexdata):
         n = 8  # данные об одном ренже люксов занимают примерно 30 (48)
         for aec_hex in hexdata:
             aec_hex = [
@@ -184,7 +187,7 @@ class TunedLibExtract:
                 struct.unpack("<f", binascii.unhexlify(value))
                 for value in aec_hex
             ]
-            aec_hex = [i[0] for i in aec_hex if self.CheckIfInRange(i[0])]
+            aec_hex = [i[0] for i in aec_hex if self.check_if_in_range(i[0])]
             # print(aec_hex)
 
 
@@ -196,28 +199,32 @@ if __name__ == "__main__":
     )
 
     libextract = TunedLibExtract()
-    libextract.OpenTunedLib(tuned_name)
+    libextract.open_tuned_lib(tuned_name)
 
-    cc13_offsets = libextract.GetOffsetsAndLengthsByName("mod_cc13_cct_data")
-    cc13_aec = libextract.GetOffsetsAndLengthsByName("mod_cc13_aec_data")
+    cc13_offsets = libextract.get_offsets_and_lengths_by_name(
+        "mod_cc13_cct_data"
+    )
+    cc13_aec = libextract.get_offsets_and_lengths_by_name("mod_cc13_aec_data")
     aec13_cc = [int(aec[0]) + int(aec[1]) for aec in cc13_aec]
     # cc13_offsets = [offset for offset in cc13_offsets if offset[0] in aec13_cc]
 
-    cc12_offsets = libextract.GetOffsetsAndLengthsByName("mod_cc12_cct_data")
-    cc12_aec = libextract.GetOffsetsAndLengthsByName("mod_cc12_aec_data")
+    cc12_offsets = libextract.get_offsets_and_lengths_by_name(
+        "mod_cc12_cct_data"
+    )
+    cc12_aec = libextract.get_offsets_and_lengths_by_name("mod_cc12_aec_data")
     aec12_cc = [int(aec[0]) + int(aec[1]) for aec in cc12_aec]
     # cc12_offsets = [offset for offset in cc12_offsets if offset[0] in aec12_cc]
-    refptv1_offset = libextract.GetOffsetsAndLengthsByName("refPtV1")
+    refptv1_offset = libextract.get_offsets_and_lengths_by_name("refPtV1")
 
-    hexcc13 = libextract.ExtractDataByOffsets(cc13_offsets)
-    hexcc12 = libextract.ExtractDataByOffsets(cc12_offsets)
-    hexcc12aec = libextract.ExtractDataByOffsets(cc12_aec)
-    hexcc13aec = libextract.ExtractDataByOffsets(cc13_aec)
-    hexawb = libextract.ExtractDataByOffsets(refptv1_offset)
+    hexcc13 = libextract.extract_data_by_offsets(cc13_offsets)
+    hexcc12 = libextract.extract_data_by_offsets(cc12_offsets)
+    hexcc12aec = libextract.extract_data_by_offsets(cc12_aec)
+    hexcc13aec = libextract.extract_data_by_offsets(cc13_aec)
+    hexawb = libextract.extract_data_by_offsets(refptv1_offset)
 
-    cc13aec = libextract.DecodeAec(hexcc13aec)
-    cc12aec = libextract.DecodeAec(hexcc12aec)
-    awb = libextract.DecodeAwb(hexawb)
+    cc13aec = libextract.decode_aec(hexcc13aec)
+    cc12aec = libextract.decode_aec(hexcc12aec)
+    awb = libextract.decode_awb(hexawb)
     awb_order = [
         "StatsIlluminantHigh",
         "StatsIlluminantD75",
@@ -239,17 +246,25 @@ if __name__ == "__main__":
     for pair in gcam_order:
         print(f"{awb_order[pair]:30}: {awb[pair]}")
 
+    print("\nAWB in Java:")
+    print(
+        f"WB_BG = new float[]{{{awb[2][1]}, {awb[1][1]}, {awb[7][1]}, {awb[6][1]}, {awb[4][1]}, {awb[8][1]}, {awb[3][1]}, {awb[5][1]}}};"
+    )
+    print(
+        f"WB_RG = new float[]{{{awb[2][0]}, {awb[1][0]}, {awb[7][0]}, {awb[6][0]}, {awb[4][0]}, {awb[8][0]}, {awb[3][0]}, {awb[5][0]}}};"
+    )
+
     print("\nAWB in HEX:\nRG")
     for pair in gcam_order:
-        print(str(libextract.FloatToHex(float(awb[pair][0]))))
+        print(str(libextract.float_to_hex(float(awb[pair][0]))))
 
     print("\nBG")
     for pair in gcam_order:
-        print(str(libextract.FloatToHex(float(awb[pair][1]))))
+        print(str(libextract.float_to_hex(float(awb[pair][1]))))
 
     cct = []
-    cct13 = libextract.DecodeCct(hexcc13)
-    cct12 = libextract.DecodeCct(hexcc12)
+    cct13 = libextract.decode_cct(hexcc13)
+    cct12 = libextract.decode_cct(hexcc12)
     # ебаные пустые авб от сяомы
     cct = cct + cct13 if cct13 is not None else cct
     cct = cct + cct12 if cct12 is not None else cct
@@ -262,13 +277,13 @@ if __name__ == "__main__":
         )  # это просто пиздец прости меня господи
         matrix = matrix[2:]
         print(matrix)
-        matrix_in_hex = libextract.MatrixToHex(matrix)
+        matrix_in_hex = libextract.matrix_to_hex(matrix)
         print("In HEX:")
         for hex_value in matrix_in_hex:
             print(hex_value)
         print("\n")
 
-    with open(libextract.TunedName + ".txt", "w", encoding="utf-8") as f:
+    with open(libextract.tuned_name + ".txt", "w", encoding="utf-8") as f:
         f.write("Order in libs:                      RG            BG\n")
         for id, pair in enumerate(awb_order):
             f.write(f"{pair:30}: {awb[id]}\n")
@@ -277,10 +292,10 @@ if __name__ == "__main__":
             f.write(f"{awb_order[pair]:30}: {awb[pair]}\n")
         f.write("\nAWB in HEX:\nRG\n")
         for pair in gcam_order:
-            f.write(str(libextract.FloatToHex(float(awb[pair][0]))) + "\n")
+            f.write(str(libextract.float_to_hex(float(awb[pair][0]))) + "\n")
         f.write("\nBG\n")
         for pair in gcam_order:
-            f.write(str(libextract.FloatToHex(float(awb[pair][1]))) + "\n")
+            f.write(str(libextract.float_to_hex(float(awb[pair][1]))) + "\n")
         f.write("\nCCT:\n")
         for matrix in cct:
             f.write(
@@ -288,10 +303,20 @@ if __name__ == "__main__":
             )
             matrix = matrix[2:]
             f.write(str(matrix) + "\n")
-            matrix_in_hex = libextract.MatrixToHex(matrix)
+            matrix_in_hex = libextract.matrix_to_hex(matrix)
             f.write("In HEX:\n")
             for hex_value in matrix_in_hex:
                 f.write(hex_value + "\n")
             f.write("\n")
-
+    try:
+        git_version = urllib.request.urlopen(
+            "https://raw.githubusercontent.com/Rivko/TunedLibExtract/main/VERSION"
+        )
+        git_version = str(git_version.read().strip().decode("utf-8"))
+        if git_version != __version__:
+            print(
+                "New version is available @ https://github.com/Rivko/TunedLibExtract/releases"
+            )
+    except urllib.error.HTTPError as e:
+        print(e)
     os.system("pause")
